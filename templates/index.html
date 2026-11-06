@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智蜂专家 · RAG蜜源信息推荐系统</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 -->
+        <header class="topbar">
+            <div class="logo">
+                <span class="logo-icon">🐝</span>
+                <span class="logo-text">智蜂专家 · RAG蜜源信息推荐系统</span>
+            </div>
+            <button id="btnKnowledge" class="btn-knowledge" title="浏览知识库文章">📚 知识库</button>
+            <button id="btnTrace" class="btn-knowledge" title="蜂产品溯源查询：输入溯源码查验产地/质检/物流全链路记录">🔍 溯源查询</button>
+            <button id="btnFusion" class="btn-knowledge" title="蜜源环境融合评估：BP神经网络+改进D-S证据理论多源数据融合">🌡️ 环境评估</button>
+            <div class="topbar-user" id="topbarUser" style="display:none;">
+                <span class="user-badge" id="userBadge">👤</span>
+                <button id="btnLogout" class="btn-logout" title="退出登录">退出</button>
+            </div>
+            <div class="topbar-stats" id="topbarStats">
+                <span class="stat-badge weather-badge" id="statWeather" title="今日天气 · 点击刷新">🌤️ 天气加载中…</span>
+                <span class="stat-badge" id="statNectar">蜜源: --</span>
+                <span class="stat-badge" id="statPlant">植物: --</span>
+                <span class="stat-badge" id="statProvince">省份: --</span>
+                <span class="stat-badge llm-badge" id="statLLM">LLM: 检测中</span>
+            </div>
+        </header>
+
+        <!-- 主体内容 -->
+        <main class="main-content">
+            <!-- 左侧：地图 + 推荐 -->
+            <section class="left-panel">
+                <!-- 筛选栏 -->
+                <div class="filter-bar">
+                    <select id="filterProvince" class="filter-select">
+                        <option value="">全部省份</option>
+                    </select>
+                    <select id="filterPlant" class="filter-select">
+                        <option value="">全部蜜源</option>
+                    </select>
+                    <select id="filterMonth" class="filter-select">
+                        <option value="">全年</option>
+                        <option value="1">1月</option><option value="2">2月</option>
+                        <option value="3">3月</option><option value="4">4月</option>
+                        <option value="5">5月</option><option value="6">6月</option>
+                        <option value="7">7月</option><option value="8">8月</option>
+                        <option value="9">9月</option><option value="10">10月</option>
+                        <option value="11">11月</option><option value="12">12月</option>
+                    </select>
+                    <button id="btnRecommend" class="btn-primary">🔍 推荐蜜源</button>
+                    <button id="btnResetFilter" class="btn-secondary">重置</button>
+                </div>
+
+                <!-- 地图 -->
+                <div class="map-container">
+                    <div id="map"></div>
+                    <div class="map-legend">
+                        <div class="legend-item"><span class="dot dot-primary"></span>主要蜜源</div>
+                        <div class="legend-item"><span class="dot dot-aux"></span>辅助蜜源</div>
+                    </div>
+                </div>
+
+                <!-- 推荐结果列表 -->
+                <div class="recommend-panel" id="recommendPanel" style="display:none;">
+                    <h3 class="panel-title">📋 推荐结果 <span class="result-count" id="recommendCount"></span></h3>
+                    <div class="recommend-list" id="recommendList"></div>
+                </div>
+            </section>
+
+            <!-- 分隔条：可拖动调整左右面板宽度 -->
+            <div class="splitter" id="splitter"></div>
+
+            <!-- 右侧：智能问答 -->
+            <section class="right-panel">
+                <div class="chat-header">
+                    <h3>🤖 智能问答</h3>
+                    <div class="chat-header-right">
+                        <button id="btnNewChat" class="btn-newchat" title="清空并开始新对话">＋ 新对话</button>
+                        <span class="chat-mode" id="chatMode">--</span>
+                    </div>
+                </div>
+
+                <!-- 快捷问题 -->
+                <div class="quick-questions">
+                    <button class="quick-q" data-q="3月份有哪些蜜源植物开花？">3月有什么蜜源？</button>
+                    <button class="quick-q" data-q="广东有什么蜜源？推荐采蜜地点">广东蜜源推荐</button>
+                    <button class="quick-q" data-q="荆条蜜源分布在哪些省份？什么时候开花？">荆条蜜源在哪</button>
+                    <button class="quick-q" data-q="蜂箱温度湿度应该控制在多少？">蜂箱温湿度</button>
+                    <button class="quick-q" data-q="椴树蜜源在东北哪里？什么时候去采蜜最好？">椴树蜜源地</button>
+                </div>
+
+                <!-- 对话区 -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="msg bot">
+                        <div class="msg-avatar">🤖</div>
+                        <div class="msg-content">
+                            <p>您好！我是智蜂专家AI助手。我可以帮您：</p>
+                            <ul>
+                                <li>🐝 推荐全国蜜源地（按省份、花期筛选）</li>
+                                <li>📍 在地图上查看蜜源分布</li>
+                                <li>📅 查询最佳采蜜时间</li>
+                                <li>📚 回答养蜂技术问题</li>
+                            </ul>
+                            <p>试试点击上方快捷问题，或直接输入您的问题吧！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 来源展示 -->
+                <div class="sources-panel" id="sourcesPanel" style="display:none;">
+                    <h4>📎 检索来源（RAG）</h4>
+                    <div id="sourcesList"></div>
+                </div>
+
+                <!-- 输入区 -->
+                <div class="chat-input-bar">
+                    <button id="btnVoice" class="btn-voice" title="语音输入提问（需要浏览器支持）">🎤</button>
+                    <input type="text" id="chatInput" class="chat-input"
+                           placeholder="输入关于蜜源、养蜂的问题..." autocomplete="off" />
+                    <button id="btnSend" class="btn-send">发送</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 蜜源详情弹窗模板 -->
+    <template id="nectarDetailTemplate">
+        <div class="nectar-detail-popup">
+            <h4 class="popup-title"></h4>
+            <div class="popup-info"></div>
+        </div>
+    </template>
+
+    <!-- 知识库浏览弹窗 -->
+    <div class="kb-modal" id="kbModal" style="display:none;">
+        <div class="kb-dialog">
+            <div class="kb-header">
+                <h3>📚 养蜂知识库 <span class="kb-count" id="kbCount"></span></h3>
+                <div class="kb-tools">
+                    <select id="kbCategory" class="kb-select">
+                        <option value="">全部分类</option>
+                    </select>
+                    <input type="text" id="kbSearch" class="kb-search" placeholder="搜索标题 / 内容 / 标签..." autocomplete="off" />
+                    <button id="kbClose" class="kb-close" title="关闭">✕</button>
+                </div>
+            </div>
+            <div class="kb-body">
+                <div class="kb-list" id="kbList"></div>
+                <div class="kb-detail" id="kbDetail">
+                    <div class="kb-detail-empty">
+                        <p>📖 从左侧选择一篇文章查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录/注册遮罩 -->
+    <div class="auth-modal" id="authModal">
+        <div class="auth-dialog">
+            <div class="auth-brand">
+                <span class="auth-logo">🐝</span>
+                <h2>智蜂专家</h2>
+                <p>全国蜜源信息推荐 · 养蜂智能问答</p>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tabLogin">登 录</button>
+                <button class="auth-tab" id="tabRegister">注 册</button>
+            </div>
+            <form id="authForm" autocomplete="off">
+                <div class="auth-field" id="fieldNickname" style="display:none;">
+                    <label>昵称（可选）</label>
+                    <input type="text" id="authNickname" placeholder="怎么称呼您？" maxlength="20" />
+                </div>
+                <div class="auth-field">
+                    <label>用户名</label>
+                    <input type="text" id="authUsername" placeholder="2-20位中文/字母/数字/下划线" autocomplete="username" />
+                </div>
+                <div class="auth-field">
+                    <label>密码</label>
+                    <input type="password" id="authPassword" placeholder="至少6位" autocomplete="current-password" />
+                </div>
+                <div class="auth-error" id="authError"></div>
+                <button type="submit" class="auth-submit" id="authSubmit">登 录</button>
+            </form>
+            <div class="auth-tip" id="authTip"></div>
+            <button class="auth-guest" id="btnGuest">先以游客身份浏览 →</button>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- 高德地图 JS API 2.0：需在 https://console.amap.com/dev/key/app 申请免费 Key 与安全密钥后替换占位符 -->
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: 'af87952bac0655d4b0b9e62f14b700df'
+        };
+    </script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=8c424b0eb43a258a3a7668b8f7d5e506"></script>
+    <script src="/static/js/chat.js?v=11"></script>
+</body>
+</html>
